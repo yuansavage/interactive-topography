@@ -1,8 +1,18 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Konva from "konva";
 import { Stage, Layer, Line, Shape } from "react-konva";
 import { data } from "../app/data";
+
+interface ShapeData {
+  color?: string;
+  points: number[];
+}
+interface MapData {
+  name: string;
+  outer: ShapeData;
+  holes: ShapeData;
+}
 
 const Map = () => {
   const [zoomStage, setStage] = useState({
@@ -11,6 +21,11 @@ const Map = () => {
     y: 0,
   });
   const [hoveredShape, setHoveredShape] = useState<number>(-1);
+  const [mapData, setMapData] = useState<MapData[] | undefined>(undefined);
+
+  useEffect(() => {
+    if (data) setMapData(data as MapData[]);
+  }, []);
 
   const handleStageZoom = (e: Konva.KonvaEventObject<WheelEvent>): void => {
     e.evt.preventDefault();
@@ -55,15 +70,14 @@ const Map = () => {
       draggable
     >
       <Layer>
-        {/* <Group draggable> */}
-        {data &&
-          data.map((sh, index) =>
-            sh && sh.single ? (
+        {mapData &&
+          mapData.map((sh, index) =>
+            (sh.holes.points?.length ?? 0) === 0 ? (
               <Line
                 key={index}
                 closed
-                points={sh.points}
-                fill={hoveredShape === index ? "orange" : sh.color}
+                points={sh.outer.points}
+                fill={hoveredShape === index ? "orange" : sh.outer.color}
                 stroke={hoveredShape === index ? "black" : ""}
                 onMouseEnter={() => handleMouseEnter(index)}
                 onMouseLeave={handleMouseLeave}
@@ -71,40 +85,32 @@ const Map = () => {
                 draggable
               />
             ) : (
-              sh.outer && (
-                <Shape
-                  key={index}
-                  sceneFunc={(context, shape) => {
-                    // Draw the outer shape
-                    context.beginPath();
-                    context.moveTo(sh.outer.points[0], sh.outer.points[1]);
-                    for (let i = 2; i < sh.outer.points.length; i += 2) {
-                      context.lineTo(
-                        sh.outer.points[i],
-                        sh.outer.points[i + 1]
-                      );
-                    }
-                    context.closePath();
+              <Shape
+                key={index}
+                sceneFunc={(context, shape) => {
+                  // Draw the outer shape
+                  context.beginPath();
+                  context.moveTo(sh.outer.points[0], sh.outer.points[1]);
+                  for (let i = 2; i < sh.outer.points.length; i += 2) {
+                    context.lineTo(sh.outer.points[i], sh.outer.points[i + 1]);
+                  }
+                  context.closePath();
 
-                    // Draw the hole shape
-                    context.moveTo(sh.holes.points[0], sh.holes.points[1]);
-                    for (let i = 2; i < sh.holes.points.length; i += 2) {
-                      context.lineTo(
-                        sh.holes.points[i],
-                        sh.holes.points[i + 1]
-                      );
-                    }
-                    context.closePath();
-                    context.stroke();
-                    context.fillStrokeShape(shape);
-                  }}
-                  strokeWidth={2}
-                  opacity={0.5}
-                  onMouseEnter={() => handleMouseEnter(index)}
-                  onMouseLeave={handleMouseLeave}
-                  draggable
-                />
-              )
+                  // Draw the hole shape
+                  context.moveTo(sh.holes.points[0], sh.holes.points[1]);
+                  for (let i = 2; i < sh.holes.points.length; i += 2) {
+                    context.lineTo(sh.holes.points[i], sh.holes.points[i + 1]);
+                  }
+                  context.closePath();
+                  context.stroke();
+                  context.fillStrokeShape(shape);
+                }}
+                strokeWidth={2}
+                opacity={0.5}
+                onMouseEnter={() => handleMouseEnter(index)}
+                onMouseLeave={handleMouseLeave}
+                draggable
+              />
             )
           )}
         {/* <Path
@@ -114,7 +120,6 @@ const Map = () => {
           stroke="black"
           strokeWidth={2}
         /> */}
-        {/* </Group> */}
       </Layer>
     </Stage>
   );
